@@ -104,10 +104,10 @@ public class Game {
             }
         }
 
-        // Update Asteroids (floating drift & screen wrapping)
+        // Update Asteroids (floating drift & wall bouncing)
         for (Asteroid ast : asteroids) {
-            ast.setX((int) (ast.getX() + ast.getVx()));
-            ast.setY((int) (ast.getY() + ast.getVy()));
+            ast.setX(ast.getX() + ast.getVx());
+            ast.setY(ast.getY() + ast.getVy());
 
             // Bounce off the 3000x3000 world boundaries
             ast.checkBounds(3000, 3000);

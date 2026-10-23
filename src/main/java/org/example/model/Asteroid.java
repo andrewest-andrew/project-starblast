@@ -13,7 +13,7 @@ public class Asteroid {
     public enum Size { BIG, MID, SMALL }
 
     private String id;
-    private int x, y;
+    private double x, y;
     private int width, height;
     private double vx, vy; // Velocity vectors for floating drift
     private Size sizeType;
@@ -42,8 +42,8 @@ public class Asteroid {
         }
 
         // Give them a random slow drift velocity (e.g., between -1.5 and 1.5)
-        this.vx = (Math.random() * 2.0 - 1.0) * 1.2;
-        this.vy = (Math.random() * 2.0 - 1.0) * 1.2;
+        this.vx = (Math.random() * 2.0 - 1.0) * 1.5;
+        this.vy = (Math.random() * 2.0 - 1.0) * 1.5;
     }
 
     // Bounce off map walls (0 to mapWidth/mapHeight)

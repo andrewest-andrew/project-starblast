@@ -96,12 +96,16 @@ public class GamePanel extends JPanel {
                 case SMALL -> asteroidSmallImage;
             };
 
+            // Cast double positions to int for pixel rendering
+            int drawX = (int) ast.getX();
+            int drawY = (int) ast.getY();
+
             if (astImage != null) {
-                g2d.drawImage(astImage, ast.getX(), ast.getY(), ast.getWidth(), ast.getHeight(), this);
+                g2d.drawImage(astImage, drawX, drawY, ast.getWidth(), ast.getHeight(), this);
             } else {
                 // Fallback gray circles if images are missing
                 g2d.setColor(Color.gray);
-                g2d.fillOval(ast.getX(), ast.getY(), ast.getWidth(), ast.getHeight());
+                g2d.fillOval(drawX, drawY, ast.getWidth(), ast.getHeight());
             }
         }
 
