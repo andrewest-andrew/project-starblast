@@ -32,7 +32,6 @@ public class Game {
 
     private boolean movingUp, movingDown, movingLeft, movingRight;
     private boolean shooting;
-    private static final int SHIP_SPEED = 4; // Pixels per tick
 
     public Game() {
         // Initialize player ship at x=100, y=300
@@ -90,14 +89,15 @@ public class Game {
 
     // Called every frame by Hilo
     public void actualizar() {
-        // 1. Handle Ship Movement
+        // 1. Handle Ship Movement using dynamic ship speed
+        int shipSpeed = nave.getSpeed();
         int newX = nave.getX();
         int newY = nave.getY();
 
-        if (movingUp) newY -= SHIP_SPEED;
-        if (movingDown) newY += SHIP_SPEED;
-        if (movingLeft) newX -= SHIP_SPEED;
-        if (movingRight) newX += SHIP_SPEED;
+        if (movingUp) newY -= shipSpeed;
+        if (movingDown) newY += shipSpeed;
+        if (movingLeft) newX -= shipSpeed;
+        if (movingRight) newX += shipSpeed;
 
         // Keep ship inside dynamic map bounds
         newX = Math.max(0, Math.min(newX, mapWidth - nave.getWidth()));
@@ -105,6 +105,16 @@ public class Game {
 
         nave.setX(newX);
         nave.setY(newY);
+
+        // --- PASSIVE REGENERATION (Assuming ~60 ticks per second) ---
+        // HP regenerates at 3 HP/s -> 3.0 / 60 per tick = 0.05 per tick
+        if (nave.getHp() < nave.getMaxHp()) {
+            nave.setHp(Math.min(nave.getMaxHp(), nave.getHp() + (3.0 / 60.0)));
+        }
+        // Energy regenerates at 4 Energy/s -> 4.0 / 60 per tick = ~0.0667 per tick
+        if (nave.getEnergy() < nave.getMaxEnergy()) {
+            nave.setEnergy(Math.min(nave.getMaxEnergy(), nave.getEnergy() + (6.0 / 60.0)));
+        }
 
         // 2. Wave Timer & Enemy Spawning Logic
         long elapsedSeconds = getElapsedSeconds();
@@ -129,12 +139,11 @@ public class Game {
             enemy.checkBounds(mapWidth, mapHeight);
         }
 
-        // 4. Manual Shooting Logic
+        // 4. Manual Shooting Logic with Energy & Level Rules
         if (shooting) {
             long currentTime = System.currentTimeMillis();
             if (currentTime - lastShotTime >= SHOOT_COOLDOWN) {
-                dispararProjectile();
-                lastShotTime = currentTime;
+                tryShoot();
             }
         }
 
@@ -157,12 +166,40 @@ public class Game {
         }
     }
 
+    private void tryShoot() {
+        int level = nave.getLevel();
+        int energyCost = (level == 1) ? 5 : 10;
+
+        // Check if ship has enough energy for at least one shot
+        if (nave.getEnergy() >= energyCost) {
+            nave.setEnergy(nave.getEnergy() - energyCost);
+            dispararProjectile();
+            lastShotTime = System.currentTimeMillis();
+        }
+    }
+
     private void dispararProjectile() {
         int pWidth = 10;
         int pHeight = 15;
-        int px = nave.getX() + (nave.getWidth() - pWidth) / 2;
-        int py = nave.getY();
-        projectiles.add(new Projectile(px, py, pWidth, pHeight));
+        int damage = 10;
+        int level = nave.getLevel();
+
+        if (level == 1) {
+            // Level 1: Single shot
+            int px = nave.getX() + (nave.getWidth() - pWidth) / 2;
+            int py = nave.getY();
+            projectiles.add(new Projectile(px, py, pWidth, pHeight, damage));
+        } else {
+            // Level 2, 3, 4: 3-shot burst spread out horizontally
+            int leftX = nave.getX() + 5;
+            int centerX = nave.getX() + (nave.getWidth() - pWidth) / 2;
+            int rightX = nave.getX() + nave.getWidth() - pWidth - 5;
+            int py = nave.getY();
+
+            projectiles.add(new Projectile(leftX, py + 10, pWidth, pHeight, damage));
+            projectiles.add(new Projectile(centerX, py, pWidth, pHeight, damage));
+            projectiles.add(new Projectile(rightX, py + 10, pWidth, pHeight, damage));
+        }
     }
 
     public long getElapsedSeconds() {
