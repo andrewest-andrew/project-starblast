@@ -34,8 +34,8 @@ public class Game {
     private boolean shooting;
 
     public Game() {
-        // Initialize player ship at x=100, y=300
-        this.nave = new Nave(100, 300, 100, 100);
+        // Initialize player ship at x,y
+        this.nave = new Nave(100, 300);
         this.projectiles = new ArrayList<>();
         this.asteroids = new ArrayList<>();
         this.lastShotTime = System.currentTimeMillis();
@@ -127,16 +127,68 @@ public class Game {
             spawnEnemies(3, 2, 0);
             wave2 = true;
         }
-        if (elapsedSeconds >= 180 && !wave3) {
+        if (elapsedSeconds >= 90 && !wave3) {
             spawnEnemies(3, 2, 1);
             wave3 = true;
         }
 
         // 3. Update Enemies
+        double playerCenterX = nave.getX() + nave.getWidth() / 2.0;
+        double playerCenterY = nave.getY() + nave.getHeight() / 2.0;
+
         for (Enemy enemy : enemies) {
+            double enemyCenterX = enemy.getX() + enemy.getWidth() / 2.0;
+            double enemyCenterY = enemy.getY() + enemy.getHeight() / 2.0;
+
+            double dx = playerCenterX - enemyCenterX;
+            double dy = playerCenterY - enemyCenterY;
+            double distance = Math.sqrt(dx * dx + dy * dy);
+
+            // --- AGGRO & CHASING LOGIC ---
+            if (distance <= 200.0) {
+                enemy.setAggro(true);
+            }
+
+            if (enemy.isAggro()) {
+                // Actively track player based on enemy type speed
+                double speed = (enemy.getEnemyType() == Enemy.Type.BOSS) ? 1.5 : 2.0; // Boss moves slower, officers/soldiers faster
+                if (distance > 5) { // Prevent jittering when right on top of player
+                    enemy.setVx((dx / distance) * speed);
+                    enemy.setVy((dy / distance) * speed);
+                } else {
+                    enemy.setVx(0);
+                    enemy.setVy(0);
+                }
+            }
+
+            // Apply movement
             enemy.setX(enemy.getX() + enemy.getVx());
             enemy.setY(enemy.getY() + enemy.getVy());
             enemy.checkBounds(mapWidth, mapHeight);
+
+            // --- ENEMY SHOOTING LOGIC ---
+            if (distance <= 200.0) {
+                long currentTime = System.currentTimeMillis();
+                // Adjust fire rate per enemy type if desired (Boss fires slightly faster/slower)
+                long fireCooldown = (enemy.getEnemyType() == Enemy.Type.BOSS) ? 800 : 1200;
+
+                if (currentTime - enemy.getLastShotTime() >= fireCooldown) {
+                    double length = distance;
+                    if (length > 0) {
+                        double bulletSpeed = 5.0;
+                        double pvx = (dx / length) * bulletSpeed;
+                        double pvy = (dy / length) * bulletSpeed;
+
+                        int pWidth = 10;
+                        int pHeight = 10;
+                        double px = enemyCenterX - pWidth / 2.0;
+                        double py = enemyCenterY - pHeight / 2.0;
+
+                        projectiles.add(new Projectile(px, py, pWidth, pHeight, 10, pvx, pvy, true));
+                        enemy.setLastShotTime(currentTime);
+                    }
+                }
+            }
         }
 
         // 4. Manual Shooting Logic with Energy & Level Rules
@@ -151,9 +203,13 @@ public class Game {
         Iterator<Projectile> iterator = projectiles.iterator();
         while (iterator.hasNext()) {
             Projectile p = iterator.next();
-            p.setY(p.getY() - 6);
 
-            if (p.getY() < 0) {
+            // Move based on velocity vectors
+            p.setX(p.getX() + p.getVx());
+            p.setY(p.getY() + p.getVy());
+
+            // Remove if it goes out of map bounds
+            if (p.getX() < 0 || p.getX() > mapWidth || p.getY() < 0 || p.getY() > mapHeight) {
                 iterator.remove();
             }
         }
@@ -185,20 +241,19 @@ public class Game {
         int level = nave.getLevel();
 
         if (level == 1) {
-            // Level 1: Single shot
             int px = nave.getX() + (nave.getWidth() - pWidth) / 2;
             int py = nave.getY();
-            projectiles.add(new Projectile(px, py, pWidth, pHeight, damage));
+            // Player projectiles move straight up (vx = 0, vy = -8) and are NOT enemy projectiles
+            projectiles.add(new Projectile(px, py, pWidth, pHeight, damage, 0, -8, false));
         } else {
-            // Level 2, 3, 4: 3-shot burst spread out horizontally
             int leftX = nave.getX() + 5;
             int centerX = nave.getX() + (nave.getWidth() - pWidth) / 2;
             int rightX = nave.getX() + nave.getWidth() - pWidth - 5;
             int py = nave.getY();
 
-            projectiles.add(new Projectile(leftX, py + 10, pWidth, pHeight, damage));
-            projectiles.add(new Projectile(centerX, py, pWidth, pHeight, damage));
-            projectiles.add(new Projectile(rightX, py + 10, pWidth, pHeight, damage));
+            projectiles.add(new Projectile(leftX, py + 10, pWidth, pHeight, damage, 0, -8, false));
+            projectiles.add(new Projectile(centerX, py, pWidth, pHeight, damage, 0, -8, false));
+            projectiles.add(new Projectile(rightX, py + 10, pWidth, pHeight, damage, 0, -8, false));
         }
     }
 

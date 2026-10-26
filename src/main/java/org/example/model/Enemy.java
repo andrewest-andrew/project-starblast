@@ -17,6 +17,8 @@ public class Enemy {
     private int width, height;
     private double vx, vy;
     private Type enemyType;
+    private long lastShotTime = 0;
+    private boolean aggro = false;
 
     public Enemy(double x, double y, Type enemyType) {
         this.id = UUID.randomUUID().toString();
@@ -27,17 +29,17 @@ public class Enemy {
         // Size scaling based on type
         switch (enemyType) {
             case OFFICER:
-                this.width = 50;
-                this.height = 50;
+                this.width = 80;
+                this.height = 80;
                 break;
             case BOSS:
-                this.width = 100;
-                this.height = 100;
+                this.width = 200;
+                this.height = 200;
                 break;
             case SOLDIER:
             default:
-                this.width = 35;
-                this.height = 35;
+                this.width = 60;
+                this.height = 60;
                 break;
         }
 

@@ -26,6 +26,7 @@ public class GamePanel extends JPanel {
     private BufferedImage enemySoldierImage;
     private BufferedImage enemyOfficerImage;
     private BufferedImage enemyBossImage;
+    private final BufferedImage enemyProjectileImage;
 
 //    private static final int MAP_WIDTH = 1000;
 //    private static final int MAP_HEIGHT = 1000;
@@ -42,6 +43,7 @@ public class GamePanel extends JPanel {
 
         // Load project/laser image
         projectileImage = BufferedImageUtil.readImage("ProjectilePea.png", GamePanel.class);
+        enemyProjectileImage = BufferedImageUtil.readImage("enemy_bullets.png", GamePanel.class);
 
         // Load ship assets
         shipImages[0] = BufferedImageUtil.readImage("ship_lvl1.png", GamePanel.class);
@@ -146,11 +148,23 @@ public class GamePanel extends JPanel {
 
         // --- 6. DRAW PROJECTILES ---
         for (Projectile p : game.getProjectiles()) {
-            if (projectileImage != null) {
-                g2d.drawImage(projectileImage, p.getX(), p.getY(), p.getWidth(), p.getHeight(), this);
+            int drawX = (int) p.getX();
+            int drawY = (int) p.getY();
+
+            if (p.isEnemyProjectile()) {
+                if (enemyProjectileImage != null) {
+                    g2d.drawImage(enemyProjectileImage, drawX, drawY, p.getWidth(), p.getHeight(), this);
+                } else {
+                    g2d.setColor(Color.orange);
+                    g2d.fillOval(drawX, drawY, p.getWidth(), p.getHeight());
+                }
             } else {
-                g2d.setColor(Color.green);
-                g2d.fillOval(p.getX(), p.getY(), p.getWidth(), p.getHeight());
+                if (projectileImage != null) {
+                    g2d.drawImage(projectileImage, drawX, drawY, p.getWidth(), p.getHeight(), this);
+                } else {
+                    g2d.setColor(Color.green);
+                    g2d.fillOval(drawX, drawY, p.getWidth(), p.getHeight());
+                }
             }
         }
 

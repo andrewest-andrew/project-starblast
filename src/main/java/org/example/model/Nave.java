@@ -22,12 +22,10 @@ public class Nave {
     private double maxEnergy;
     private int speed;
 
-    public Nave(int x, int y, int width, int height) {
+    public Nave(int x, int y) {
         this.id = UUID.randomUUID().toString();
         this.x = x;
         this.y = y;
-        this.width = width;
-        this.height = height;
         this.level = 1; // Start at Level 1
         applyLevelStats();
 
@@ -47,21 +45,29 @@ public class Nave {
                 this.speed = 3;
                 this.maxHp = 100;
                 this.maxEnergy = 100;
+                this.width = 90;
+                this.height = 90;
                 break;
             case 2:
                 this.speed = 4;
                 this.maxHp = 150;
                 this.maxEnergy = 150;
+                this.width = 90;
+                this.height = 90;
                 break;
             case 3:
                 this.speed = 4;
                 this.maxHp = 200;
                 this.maxEnergy = 200;
+                this.width = 100;
+                this.height = 100;
                 break;
             case 4:
                 this.speed = 5;
                 this.maxHp = 250;
                 this.maxEnergy = 250;
+                this.width = 110;
+                this.height = 110;
                 break;
         }
         // Cap current values to new maxes if upgrading
