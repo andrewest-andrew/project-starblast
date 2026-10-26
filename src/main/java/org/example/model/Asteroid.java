@@ -3,13 +3,16 @@ package org.example.model;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import org.example.model.interfaces.Collidable;
+import org.example.model.interfaces.Damageable;
 
+import java.awt.*;
 import java.util.UUID;
 
 @Getter
 @Setter
 @ToString
-public class Asteroid {
+public class Asteroid implements Collidable, Damageable {
     public enum Size { BIG, MID, SMALL }
 
     private String id;
@@ -17,6 +20,9 @@ public class Asteroid {
     private int width, height;
     private double vx, vy; // Velocity vectors for floating drift
     private Size sizeType;
+
+    private double hp;
+    private double maxHp;
 
     public Asteroid(int x, int y, Size sizeType) {
         this.id = UUID.randomUUID().toString();
@@ -29,17 +35,21 @@ public class Asteroid {
             case BIG:
                 this.width = 80;
                 this.height = 80;
+                this.maxHp = 150;
                 break;
             case MID:
                 this.width = 50;
                 this.height = 50;
+                this.maxHp = 80;
                 break;
             case SMALL:
             default:
                 this.width = 30;
                 this.height = 30;
+                this.maxHp = 30;
                 break;
         }
+        this.hp = this.maxHp;
 
         // Give them a random slow drift velocity (e.g., between -1.5 and 1.5)
         this.vx = (Math.random() * 2.0 - 1.0) * 1.5;
@@ -63,5 +73,24 @@ public class Asteroid {
             y = mapHeight - height;
             vy = -vy;
         }
+    }
+    @Override
+    public double getHp() {
+        return hp;
+    }
+
+    @Override
+    public Rectangle getBounds() {
+        return new Rectangle((int) x, (int) y, width, height);
+    }
+
+    @Override
+    public void takeDamage(double amount) {
+        this.hp = Math.max(0, this.hp - amount);
+    }
+
+    @Override
+    public boolean isDestroyed() {
+        return this.hp <= 0;
     }
 }

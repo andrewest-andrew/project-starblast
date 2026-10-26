@@ -180,7 +180,7 @@ public class Game {
                         double pvy = (dy / length) * bulletSpeed;
 
                         int pWidth = 10;
-                        int pHeight = 10;
+                        int pHeight = 25;
                         double px = enemyCenterX - pWidth / 2.0;
                         double py = enemyCenterY - pHeight / 2.0;
 

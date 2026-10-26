@@ -3,13 +3,16 @@ package org.example.model;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import org.example.model.interfaces.Collidable;
+import org.example.model.interfaces.Damageable;
 
+import java.awt.*;
 import java.util.UUID;
 
 @Getter
 @Setter
 @ToString
-public class Nave {
+public class Nave implements Collidable, Damageable {
     private String id;
     private int x, y;
     private int width, height;
@@ -73,5 +76,20 @@ public class Nave {
         // Cap current values to new maxes if upgrading
         this.hp = Math.min(this.hp, this.maxHp);
         this.energy = Math.min(this.energy, this.maxEnergy);
+    }
+
+    @Override
+    public Rectangle getBounds() {
+        return new Rectangle(x, y, width, height);
+    }
+
+    @Override
+    public void takeDamage(double amount) {
+        this.hp = Math.max(0, this.hp - amount);
+    }
+
+    @Override
+    public boolean isDestroyed() {
+        return this.hp <= 0;
     }
 }

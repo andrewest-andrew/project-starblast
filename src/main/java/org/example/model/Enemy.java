@@ -3,13 +3,16 @@ package org.example.model;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import org.example.model.interfaces.Collidable;
+import org.example.model.interfaces.Damageable;
 
+import java.awt.*;
 import java.util.UUID;
 
 @Getter
 @Setter
 @ToString
-public class Enemy {
+public class Enemy implements Collidable, Damageable {
     public enum Type { SOLDIER, OFFICER, BOSS }
 
     private String id;
@@ -19,6 +22,9 @@ public class Enemy {
     private Type enemyType;
     private long lastShotTime = 0;
     private boolean aggro = false;
+
+    private double hp;
+    private double maxHp;
 
     public Enemy(double x, double y, Type enemyType) {
         this.id = UUID.randomUUID().toString();
@@ -31,17 +37,21 @@ public class Enemy {
             case OFFICER:
                 this.width = 80;
                 this.height = 80;
+                this.maxHp = 120;
                 break;
             case BOSS:
                 this.width = 200;
                 this.height = 200;
+                this.maxHp = 600;
                 break;
             case SOLDIER:
             default:
                 this.width = 60;
                 this.height = 60;
+                this.maxHp = 60;
                 break;
         }
+        this.hp = this.maxHp;
 
         // Gentle drift velocity
         this.vx = (Math.random() * 2.0 - 1.0) * 0.8;
@@ -65,5 +75,24 @@ public class Enemy {
             y = mapHeight - height;
             vy = -vy;
         }
+    }
+    @Override
+    public double getHp() {
+        return hp;
+    }
+
+    @Override
+    public Rectangle getBounds() {
+        return new Rectangle((int) x, (int) y, width, height);
+    }
+
+    @Override
+    public void takeDamage(double amount) {
+        this.hp = Math.max(0, this.hp - amount);
+    }
+
+    @Override
+    public boolean isDestroyed() {
+        return this.hp <= 0;
     }
 }
