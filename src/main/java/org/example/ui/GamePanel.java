@@ -2,6 +2,7 @@ package org.example.ui;
 
 import org.example.logic.Game;
 import org.example.model.Asteroid;
+import org.example.model.Enemy;
 import org.example.model.Nave;
 import org.example.model.Projectile;
 
@@ -22,8 +23,12 @@ public class GamePanel extends JPanel {
     private BufferedImage asteroidMidImage;
     private BufferedImage asteroidSmallImage;
 
-    private static final int MAP_WIDTH = 3000;
-    private static final int MAP_HEIGHT = 3000;
+    private BufferedImage enemySoldierImage;
+    private BufferedImage enemyOfficerImage;
+    private BufferedImage enemyBossImage;
+
+//    private static final int MAP_WIDTH = 1000;
+//    private static final int MAP_HEIGHT = 1000;
 
     public GamePanel(Game game) {
         this.game = game;
@@ -48,6 +53,10 @@ public class GamePanel extends JPanel {
         asteroidBigImage = BufferedImageUtil.readImage("asteroid_big.png", GamePanel.class);
         asteroidMidImage = BufferedImageUtil.readImage("asteroid_mid.png", GamePanel.class);
         asteroidSmallImage = BufferedImageUtil.readImage("asteroid_small.png", GamePanel.class);
+
+        enemySoldierImage = BufferedImageUtil.readImage("enemy_soldier.png", GamePanel.class);
+        enemyOfficerImage = BufferedImageUtil.readImage("enemy_officer.png", GamePanel.class);
+        enemyBossImage = BufferedImageUtil.readImage("enemy_boss.png", GamePanel.class);
     }
 
     @Override
@@ -58,32 +67,35 @@ public class GamePanel extends JPanel {
 
         Nave nave = game.getNave();
 
-        // --- 1. CAMERA VIEWPORT CALCULATIONS ---
+        // --- 1. GET DYNAMIC MAP SIZES FROM GAME ---
+        int mapWidth = game.getMapWidth();
+        int mapHeight = game.getMapHeight();
+
+        // --- 2. CAMERA VIEWPORT CALCULATIONS ---
         int screenWidth = getWidth();
         int screenHeight = getHeight();
 
-        // Center camera on the player ship
         int cameraX = nave.getX() - screenWidth / 2 + nave.getWidth() / 2;
         int cameraY = nave.getY() - screenHeight / 2 + nave.getHeight() / 2;
 
-        // Clamp camera to stay strictly within the 3000x3000 world bounds
-        cameraX = Math.max(0, Math.min(cameraX, MAP_WIDTH - screenWidth));
-        cameraY = Math.max(0, Math.min(cameraY, MAP_HEIGHT - screenHeight));
+        // Clamp camera using dynamic map bounds
+        cameraX = Math.max(0, Math.min(cameraX, mapWidth - screenWidth));
+        cameraY = Math.max(0, Math.min(cameraY, mapHeight - screenHeight));
 
-        // --- 2. APPLY CAMERA TRANSLATION ---
-        // Everything drawn after this point shifts relative to the camera viewport
+        // --- 3. APPLY CAMERA TRANSLATION ---
         g2d.translate(-cameraX, -cameraY);
 
-        // --- 3. DRAW BACKGROUND ACROSS THE ENTIRE 3000x3000 WORLD ---
+        // --- 4. DRAW BACKGROUND ACROSS THE ENTIRE WORLD ---
         if (bgImage1 != null && bgImage2 != null && bgImage3 != null && bgImage4 != null) {
             int imgWidth = bgImage1.getWidth();
             int imgHeight = bgImage1.getHeight();
 
             if (imgWidth > 0 && imgHeight > 0) {
                 int col = 0;
-                for (int x = 0; x < MAP_WIDTH; x += imgWidth, col++) {
+                // Use dynamic mapWidth and mapHeight here!
+                for (int x = 0; x < mapWidth; x += imgWidth, col++) {
                     int row = 0;
-                    for (int y = 0; y < MAP_HEIGHT; y += imgHeight, row++) {
+                    for (int y = 0; y < mapHeight; y += imgHeight, row++) {
                         int patternIndex = (row + col) % 3;
                         BufferedImage currentBg;
 
@@ -99,7 +111,7 @@ public class GamePanel extends JPanel {
             }
         } else {
             g2d.setColor(Color.black);
-            g2d.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+            g2d.fillRect(0, 0, mapWidth, mapHeight);
         }
 
         // --- 4. DRAW ASTEROIDS ---
@@ -142,7 +154,48 @@ public class GamePanel extends JPanel {
             }
         }
 
+        // --- DRAW ENEMIES ---
+        for (Enemy enemy : game.getEnemies()) {
+            BufferedImage enemyImg = switch (enemy.getEnemyType()) {
+                case OFFICER -> enemyOfficerImage;
+                case BOSS -> enemyBossImage;
+                case SOLDIER -> enemySoldierImage;
+            };
+
+            int drawX = (int) enemy.getX();
+            int drawY = (int) enemy.getY();
+
+            if (enemyImg != null) {
+                g2d.drawImage(enemyImg, drawX, drawY, enemy.getWidth(), enemy.getHeight(), this);
+            } else {
+                // Fallback red shape if images are missing
+                g2d.setColor(Color.red);
+                g2d.fillRect(drawX, drawY, enemy.getWidth(), enemy.getHeight());
+            }
+        }
+
         // Reset transform
         g2d.translate(cameraX, cameraY);
+
+        // --- DRAW HUD TIMER (Top Center) ---
+        long elapsedSeconds = game.getElapsedSeconds(); // We will add this getter in Game.java
+        long minutes = elapsedSeconds / 60;
+        long seconds = elapsedSeconds % 60;
+        String timeText = String.format("Time: %02d:%02d", minutes, seconds);
+
+        g2d.setFont(new Font("Arial", Font.BOLD, 18));
+        FontMetrics fm = g2d.getFontMetrics();
+        int textWidth = fm.stringWidth(timeText);
+
+        // Center horizontally at the top of the window
+        int textX = (getWidth() - textWidth) / 2;
+        int textY = 30; // 30 pixels from the top edge
+
+        // Draw a subtle dark background pill or shadow for readability, then text
+        g2d.setColor(new Color(0, 0, 0, 150));
+        g2d.fillRect(textX - 10, textY - 18, textWidth + 20, 26);
+
+        g2d.setColor(Color.WHITE);
+        g2d.drawString(timeText, textX, textY);
     }
 }

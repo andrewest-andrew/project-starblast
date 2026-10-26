@@ -14,15 +14,20 @@ public class Frame extends JFrame {
     public Frame(Game game) throws HeadlessException {
         this.game = game;
         setTitle("Starblast - Andrew's Build");
-        setSize(800, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
 
-        // Add the unified rendering canvas to the window
+        // Ensure BorderLayout is set so components can expand
+        setLayout(new BorderLayout());
+
+        // 1. Initialize and add the GamePanel to the CENTER first
         gamePanel = new GamePanel(game);
-        add(gamePanel);
+        add(gamePanel, BorderLayout.CENTER);
 
-        // Add Keyboard Listener for WASD controls
+        // 2. Configure window states
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setResizable(true);
+
+        // 3. Add Keyboard Listener for WASD controls
         addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -38,6 +43,7 @@ public class Frame extends JFrame {
         setFocusable(true);
         requestFocusInWindow();
 
+        // 4. Make visible ONCE at the very end of initialization
         setVisible(true);
         System.out.println("Frame window created with WASD controls.");
     }
