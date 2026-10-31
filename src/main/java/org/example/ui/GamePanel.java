@@ -28,6 +28,15 @@ public class GamePanel extends JPanel {
         addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mousePressed(java.awt.event.MouseEvent e) {
+                // If game has ended, check if player clicked the restart button
+                if (game.isGameWon() || game.isGameOver()) {
+                    if (getRestartButtonBounds().contains(e.getPoint())) {
+                        game.resetGame();
+                        repaint();
+                    }
+                    return;
+                }
+
                 if (e.getButton() == java.awt.event.MouseEvent.BUTTON1) { // Left click
                     game.setShooting(true);
                     game.tryShoot();
@@ -198,6 +207,9 @@ public class GamePanel extends JPanel {
             g2d.setColor(Color.WHITE);
             g2d.drawString(subText, (getWidth() - subWidth) / 2, getHeight() / 2 + 20);
 
+            // --- RESTART BUTTON ---
+            drawRestartButton(g2d);
+
         } else if (game.isGameOver()) {
             g2d.setColor(new Color(0, 0, 0, 160));
             g2d.fillRect(0, 0, getWidth(), getHeight());
@@ -215,7 +227,28 @@ public class GamePanel extends JPanel {
             int subWidth = g2d.getFontMetrics().stringWidth(subText);
             g2d.setColor(Color.WHITE);
             g2d.drawString(subText, (getWidth() - subWidth) / 2, getHeight() / 2 + 20);
+
+            // --- RESTART BUTTON ---
+            drawRestartButton(g2d);
         }
+    }
+
+    private void drawRestartButton(Graphics2D g2d) {
+        Rectangle btnBounds = getRestartButtonBounds();
+
+        // Draw button background
+        g2d.setColor(new Color(41, 128, 185)); // Sleek blue interactive theme
+        g2d.fillRoundRect(btnBounds.x, btnBounds.y, btnBounds.width, btnBounds.height, 12, 12);
+        g2d.setColor(Color.WHITE);
+        g2d.drawRoundRect(btnBounds.x, btnBounds.y, btnBounds.width, btnBounds.height, 12, 12);
+
+        // Draw button text centered
+        g2d.setFont(new Font("Arial", Font.BOLD, 18));
+        String btnText = "wanna go again?";
+        FontMetrics fm = g2d.getFontMetrics();
+        int textW = fm.stringWidth(btnText);
+        int textH = fm.getAscent();
+        g2d.drawString(btnText, btnBounds.x + (btnBounds.width - textW) / 2, btnBounds.y + (btnBounds.height + textH) / 2 - 4);
     }
 
     private void drawBackground(Graphics2D g2d, int mapWidth, int mapHeight) {
@@ -282,5 +315,13 @@ public class GamePanel extends JPanel {
         g2d.setColor(Color.WHITE);
         g2d.drawRect(barX, energyY, barWidth, barHeight);
         g2d.drawString(String.format("Energy: %d/%d", (int)nave.getEnergy(), (int)nave.getMaxEnergy()), barX + 8, energyY + 13);
+    }
+
+    private Rectangle getRestartButtonBounds() {
+        int btnWidth = 240;
+        int btnHeight = 45;
+        int btnX = (getWidth() - btnWidth) / 2;
+        int btnY = getHeight() / 2 + 55; // Placed below the subtitle text
+        return new Rectangle(btnX, btnY, btnWidth, btnHeight);
     }
 }

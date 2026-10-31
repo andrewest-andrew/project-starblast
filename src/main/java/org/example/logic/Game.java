@@ -49,6 +49,22 @@ public class Game implements GameStateListener {
         this.gameOver = true;
     }
 
+    public void resetGame() {
+        this.nave = new Nave(1250, 750);
+        this.projectiles.clear();
+        this.asteroids.clear();
+        this.enemies.clear();
+        this.gems.clear();
+        this.collectedGems = 0;
+        this.gameStartTime = System.currentTimeMillis();
+        this.wave1 = false;
+        this.wave2 = false;
+        this.wave3 = false;
+        this.gameWon = false;
+        this.gameOver = false;
+        spawnAsteroids();
+    }
+
     public Game() {
         // Initialize player ship at x,y
         this.nave = new Nave(1250, 750);
