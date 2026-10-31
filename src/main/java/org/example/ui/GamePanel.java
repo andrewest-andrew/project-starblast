@@ -1,10 +1,7 @@
 package org.example.ui;
 
 import org.example.logic.Game;
-import org.example.model.Asteroid;
-import org.example.model.Enemy;
-import org.example.model.Nave;
-import org.example.model.Projectile;
+import org.example.model.*;
 
 import javax.swing.*;
 import java.awt.*;
@@ -20,10 +17,30 @@ public class GamePanel extends JPanel {
     private final NaveRenderer naveRenderer = new NaveRenderer();
     private final AsteroidRenderer asteroidRenderer;
     private final EnemyRenderer enemyRenderer;
+    private final BufferedImage gemImage;
 
     public GamePanel(Game game) {
         this.game = game;
         setDoubleBuffered(true);
+        setFocusable(true);
+
+        // --- MOUSE CLICK SHOOTING LISTENER ---
+        addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent e) {
+                if (e.getButton() == java.awt.event.MouseEvent.BUTTON1) { // Left click
+                    game.setShooting(true);
+                    game.tryShoot();
+                }
+            }
+
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent e) {
+                if (e.getButton() == java.awt.event.MouseEvent.BUTTON1) {
+                    game.setShooting(false);
+                }
+            }
+        });
 
         // Load backgrounds
         bgImage1 = BufferedImageUtil.readImage("SpaceBG.png", GamePanel.class);
@@ -53,6 +70,8 @@ public class GamePanel extends JPanel {
                 BufferedImageUtil.readImage("enemy_officer.png", GamePanel.class),
                 BufferedImageUtil.readImage("enemy_boss.png", GamePanel.class)
         );
+
+        gemImage = BufferedImageUtil.readImage("level_up.png", GamePanel.class);
     }
 
     @Override
@@ -76,16 +95,28 @@ public class GamePanel extends JPanel {
         // Draw Background
         drawBackground(g2d, mapWidth, mapHeight);
 
-        // 1. Draw Asteroids via Renderer
+        // 1. Draw Gems (World Coordinates)
+        for (Gem gem : game.getGems()) {
+            int drawX = (int) gem.getX();
+            int drawY = (int) gem.getY();
+            if (gemImage != null) {
+                g2d.drawImage(gemImage, drawX, drawY, gem.getWidth(), gem.getHeight(), this);
+            } else {
+                g2d.setColor(Color.yellow);
+                g2d.fillOval(drawX, drawY, gem.getWidth(), gem.getHeight());
+            }
+        }
+
+        // 2. Draw Asteroids via Renderer
         for (Asteroid ast : game.getAsteroids()) {
             asteroidRenderer.render(g2d, ast, null);
         }
 
-        // 2. Draw Player Ship via Renderer
+        // 3. Draw Player Ship via Renderer
         int levelIndex = Math.max(0, Math.min(nave.getLevel() - 1, 3));
         naveRenderer.render(g2d, nave, shipImages[levelIndex]);
 
-        // 3. Draw Projectiles
+        // 4. Draw Projectiles
         for (Projectile p : game.getProjectiles()) {
             int drawX = (int) p.getX();
             int drawY = (int) p.getY();
@@ -100,7 +131,7 @@ public class GamePanel extends JPanel {
             }
         }
 
-        // 4. Draw Enemies via Renderer
+        // 5. Draw Enemies via Renderer
         for (Enemy enemy : game.getEnemies()) {
             enemyRenderer.render(g2d, enemy, null);
         }
@@ -108,9 +139,8 @@ public class GamePanel extends JPanel {
         g2d.translate(cameraX, cameraY);
         drawHUD(g2d, nave);
 
-        // --- 5. DRAW WIN/LOSS OVERLAYS ON TOP OF THE FROZEN FRAME ---
+        // --- 6. DRAW WIN/LOSS OVERLAYS ON TOP OF THE FROZEN FRAME ---
         if (game.isGameWon()) {
-            // Semi-transparent dark tint (Alpha = 160 instead of solid 220)
             g2d.setColor(new Color(0, 0, 0, 160));
             g2d.fillRect(0, 0, getWidth(), getHeight());
 
@@ -129,7 +159,6 @@ public class GamePanel extends JPanel {
             g2d.drawString(subText, (getWidth() - subWidth) / 2, getHeight() / 2 + 20);
 
         } else if (game.isGameOver()) {
-            // Semi-transparent dark tint
             g2d.setColor(new Color(0, 0, 0, 160));
             g2d.fillRect(0, 0, getWidth(), getHeight());
 

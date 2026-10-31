@@ -45,32 +45,32 @@ public class Nave implements Collidable, Damageable {
     private void applyLevelStats() {
         switch (level) {
             case 1:
-                this.speed = 3;
+                this.speed = 2;
                 this.maxHp = 100;
                 this.maxEnergy = 100;
-                this.width = 90;
-                this.height = 90;
+                this.width = 30;
+                this.height = 30;
                 break;
             case 2:
-                this.speed = 4;
+                this.speed = 3;
                 this.maxHp = 150;
                 this.maxEnergy = 150;
-                this.width = 90;
-                this.height = 90;
+                this.width = 40;
+                this.height = 40;
                 break;
             case 3:
-                this.speed = 4;
+                this.speed = 3;
                 this.maxHp = 200;
                 this.maxEnergy = 200;
-                this.width = 100;
-                this.height = 100;
+                this.width = 60;
+                this.height = 60;
                 break;
             case 4:
-                this.speed = 5;
+                this.speed = 4;
                 this.maxHp = 250;
                 this.maxEnergy = 250;
-                this.width = 110;
-                this.height = 110;
+                this.width = 80;
+                this.height = 80;
                 break;
         }
         // Cap current values to new maxes if upgrading

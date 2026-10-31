@@ -2,10 +2,7 @@ package org.example.logic;
 
 import lombok.Getter;
 import org.example.logic.interfaces.GameStateListener;
-import org.example.model.Asteroid;
-import org.example.model.Enemy;
-import org.example.model.Nave;
-import org.example.model.Projectile;
+import org.example.model.*;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -19,6 +16,7 @@ public class Game implements GameStateListener {
     private List<Projectile> projectiles;
     private List<Asteroid> asteroids;
     private final List<Enemy> enemies = new ArrayList<>();
+    private final List<Gem> gems = new ArrayList<>();
 
     // --- CENTRALIZED MAP DIMENSIONS ---
     private final int mapWidth = 2500;
@@ -37,6 +35,9 @@ public class Game implements GameStateListener {
 
     private boolean gameWon = false;
     private boolean gameOver = false;
+
+    @Getter
+    private int collectedGems = 0;
 
     @Override
     public void onBossDefeated() {
@@ -116,7 +117,7 @@ public class Game implements GameStateListener {
         if (movingLeft) newX -= shipSpeed;
         if (movingRight) newX += shipSpeed;
 
-        // Keep ship inside dynamic map bounds (Fixed formatting syntax)
+        // Keep ship inside dynamic map bounds
         newX = Math.max(0, Math.min(newX, mapWidth - nave.getWidth()));
         newY = Math.max(0, Math.min(newY, mapHeight - nave.getHeight()));
 
@@ -124,11 +125,9 @@ public class Game implements GameStateListener {
         nave.setY(newY);
 
         // --- PASSIVE REGENERATION (Assuming ~60 ticks per second) ---
-        // HP regenerates at 3 HP/s -> 3.0 / 60 per tick = 0.05 per tick
         if (nave.getHp() < nave.getMaxHp()) {
             nave.setHp(Math.min(nave.getMaxHp(), nave.getHp() + (3.0 / 60.0)));
         }
-        // Energy regenerates at 4 Energy/s -> 4.0 / 60 per tick = ~0.0667 per tick
         if (nave.getEnergy() < nave.getMaxEnergy()) {
             nave.setEnergy(Math.min(nave.getMaxEnergy(), nave.getEnergy() + (6.0 / 60.0)));
         }
@@ -162,14 +161,13 @@ public class Game implements GameStateListener {
             double distance = Math.sqrt(dx * dx + dy * dy);
 
             // --- AGGRO & CHASING LOGIC ---
-            if (distance <= 200.0) {
+            if (distance <= 400.0) {
                 enemy.setAggro(true);
             }
 
             if (enemy.isAggro()) {
-                // Actively track player based on enemy type speed
-                double speed = (enemy.getEnemyType() == Enemy.Type.BOSS) ? 1.5 : 2.0; // Boss moves slower, officers/soldiers faster
-                if (distance > 5) { // Prevent jittering when right on top of player
+                double speed = (enemy.getEnemyType() == Enemy.Type.BOSS) ? 1.5 : 2.0;
+                if (distance > 5) {
                     enemy.setVx((dx / distance) * speed);
                     enemy.setVy((dy / distance) * speed);
                 } else {
@@ -184,7 +182,7 @@ public class Game implements GameStateListener {
             enemy.checkBounds(mapWidth, mapHeight);
 
             // --- ENEMY SHOOTING LOGIC ---
-            if (distance <= 200.0) {
+            if (distance <= 350.0) {
                 long currentTime = System.currentTimeMillis();
                 long fireCooldown = (enemy.getEnemyType() == Enemy.Type.BOSS) ? 800 : 1200;
 
@@ -220,11 +218,9 @@ public class Game implements GameStateListener {
         while (projectileIterator.hasNext()) {
             Projectile p = projectileIterator.next();
 
-            // Move based on velocity vectors
             p.setX(p.getX() + p.getVx());
             p.setY(p.getY() + p.getVy());
 
-            // Remove if it goes out of map bounds
             if (p.getX() < 0 || p.getX() > mapWidth || p.getY() < 0 || p.getY() > mapHeight) {
                 projectileIterator.remove();
                 continue;
@@ -234,13 +230,11 @@ public class Game implements GameStateListener {
             boolean projectileRemoved = false;
 
             if (p.isEnemyProjectile()) {
-                // Check if enemy projectile hits the player (Nave)
                 if (pBounds.intersects(nave.getBounds())) {
-                    nave.takeDamage(10); // Enemy bullet damage
+                    nave.takeDamage(10);
                     projectileRemoved = true;
                 }
             } else {
-                // Check if player projectile hits an Enemy
                 Iterator<Enemy> enemyIterator = enemies.iterator();
                 while (enemyIterator.hasNext()) {
                     Enemy enemy = enemyIterator.next();
@@ -251,7 +245,6 @@ public class Game implements GameStateListener {
                     }
                 }
 
-                // Check if player projectile hits an Asteroid (if not already destroyed by an enemy)
                 if (!projectileRemoved) {
                     Iterator<Asteroid> asteroidIterator = asteroids.iterator();
                     while (asteroidIterator.hasNext()) {
@@ -281,7 +274,6 @@ public class Game implements GameStateListener {
         Rectangle naveBounds = nave.getBounds();
         for (Asteroid ast : asteroids) {
             if (naveBounds.intersects(ast.getBounds())) {
-                // Damage scaling by size
                 double damage = switch (ast.getSizeType()) {
                     case BIG -> 30.0;
                     case MID -> 15.0;
@@ -289,7 +281,6 @@ public class Game implements GameStateListener {
                 };
                 nave.takeDamage(damage);
 
-                // Knockback physics push vector
                 double astCenterX = ast.getX() + ast.getWidth() / 2.0;
                 double astCenterY = ast.getY() + ast.getHeight() / 2.0;
 
@@ -312,34 +303,100 @@ public class Game implements GameStateListener {
 
                 nave.setX(pushedX);
                 nave.setY(pushedY);
-                break; // Single collision handle per frame
+                break;
             }
         }
 
-        // 8. Cleanup Destroyed Entities & Check Win/Loss Conditions
+        // --- 8. UPDATE & ATTRACT GEMS ---
+        Iterator<Gem> gemIterator = gems.iterator();
+        while (gemIterator.hasNext()) {
+            Gem gem = gemIterator.next();
+            double gemCenterX = gem.getX() + gem.getWidth() / 2.0;
+            double gemCenterY = gem.getY() + gem.getHeight() / 2.0;
+
+            double gdx = playerCenterX - gemCenterX;
+            double gdy = playerCenterY - gemCenterY;
+            double gdist = Math.sqrt(gdx * gdx + gdy * gdy);
+
+            // Attraction radius (250px)
+            if (gdist <= 250.0) {
+                double speed = 4.5;
+                if (gdist > 3) {
+                    gem.setVx((gdx / gdist) * speed);
+                    gem.setVy((gdy / gdist) * speed);
+                } else {
+                    gem.setVx(0);
+                    gem.setVy(0);
+                }
+            } else {
+                gem.setVx(0);
+                gem.setVy(0);
+            }
+
+            gem.setX(gem.getX() + gem.getVx());
+            gem.setY(gem.getY() + gem.getVy());
+
+            // Collection check with player
+            if (gem.getBounds().intersects(nave.getBounds())) {
+                collectedGems++;
+
+                // Progression Rules
+                if (collectedGems >= 25) {
+                    nave.setLevel(4);
+                    nave.setHp(Math.min(nave.getMaxHp(), nave.getHp() + 10));
+                    nave.setEnergy(Math.min(nave.getMaxEnergy(), nave.getEnergy() + 10));
+                } else if (collectedGems >= 15) {
+                    nave.setLevel(3);
+                } else if (collectedGems >= 5) {
+                    nave.setLevel(2);
+                }
+
+                gemIterator.remove();
+            }
+        }
+
+        // 9. Cleanup Destroyed Entities, Spawn Gems, & Check Win/Loss Conditions
         Iterator<Enemy> enemyIterator = enemies.iterator();
         while (enemyIterator.hasNext()) {
             Enemy enemy = enemyIterator.next();
             if (enemy.isDestroyed()) {
                 if (enemy.getEnemyType() == Enemy.Type.BOSS) {
-                    onBossDefeated(); // Trigger Victory state
+                    onBossDefeated();
+                } else {
+                    int dropCount = (enemy.getEnemyType() == Enemy.Type.OFFICER) ? 8 : 4;
+                    for (int i = 0; i < dropCount; i++) {
+                        gems.add(new Gem(enemy.getX() + enemy.getWidth() / 2.0, enemy.getY() + enemy.getHeight() / 2.0));
+                    }
                 }
                 enemyIterator.remove();
             }
         }
 
-        if (nave.isDestroyed()) {
-            onPlayerDefeated(); // Trigger Game Over state
+        Iterator<Asteroid> asteroidIterator = asteroids.iterator();
+        while (asteroidIterator.hasNext()) {
+            Asteroid ast = asteroidIterator.next();
+            if (ast.isDestroyed()) {
+                int dropCount = switch (ast.getSizeType()) {
+                    case BIG -> 4;
+                    case MID -> 2;
+                    case SMALL -> 1;
+                };
+                for (int i = 0; i < dropCount; i++) {
+                    gems.add(new Gem(ast.getX() + ast.getWidth() / 2.0, ast.getY() + ast.getHeight() / 2.0));
+                }
+                asteroidIterator.remove();
+            }
         }
 
-        asteroids.removeIf(Asteroid::isDestroyed);
+        if (nave.isDestroyed()) {
+            onPlayerDefeated();
+        }
     }
 
-    private void tryShoot() {
+    public void tryShoot() {
         int level = nave.getLevel();
         int energyCost = (level == 1) ? 5 : 10;
 
-        // Check if ship has enough energy for at least one shot
         if (nave.getEnergy() >= energyCost) {
             nave.setEnergy(nave.getEnergy() - energyCost);
             dispararProjectile();
@@ -356,7 +413,6 @@ public class Game implements GameStateListener {
         if (level == 1) {
             int px = nave.getX() + (nave.getWidth() - pWidth) / 2;
             int py = nave.getY();
-            // Player projectiles move straight up (vx = 0, vy = -8) and are NOT enemy projectiles
             projectiles.add(new Projectile(px, py, pWidth, pHeight, damage, 0, -8, false));
         } else {
             int leftX = nave.getX() + 5;
