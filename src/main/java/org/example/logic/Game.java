@@ -51,7 +51,7 @@ public class Game implements GameStateListener {
 
     public Game() {
         // Initialize player ship at x,y
-        this.nave = new Nave(100, 300);
+        this.nave = new Nave(1250, 750);
         this.projectiles = new ArrayList<>();
         this.asteroids = new ArrayList<>();
         this.lastShotTime = System.currentTimeMillis();
@@ -410,19 +410,23 @@ public class Game implements GameStateListener {
         int damage = 10;
         int level = nave.getLevel();
 
-        if (level == 1) {
-            int px = nave.getX() + (nave.getWidth() - pWidth) / 2;
-            int py = nave.getY();
-            projectiles.add(new Projectile(px, py, pWidth, pHeight, damage, 0, -8, false));
-        } else {
-            int leftX = nave.getX() + 5;
-            int centerX = nave.getX() + (nave.getWidth() - pWidth) / 2;
-            int rightX = nave.getX() + nave.getWidth() - pWidth - 5;
-            int py = nave.getY();
+        // Calculate velocity vectors based on the ship's current rotation angle
+        double angleRad = Math.toRadians(nave.getAngle() - 90);
+        double bulletSpeed = 8.0;
+        double pvx = Math.cos(angleRad) * bulletSpeed;
+        double pvy = Math.sin(angleRad) * bulletSpeed;
 
-            projectiles.add(new Projectile(leftX, py + 10, pWidth, pHeight, damage, 0, -8, false));
-            projectiles.add(new Projectile(centerX, py, pWidth, pHeight, damage, 0, -8, false));
-            projectiles.add(new Projectile(rightX, py + 10, pWidth, pHeight, damage, 0, -8, false));
+        // Center spawn point relative to the ship
+        int px = nave.getX() + (nave.getWidth() - pWidth) / 2;
+        int py = nave.getY() + (nave.getHeight() - pHeight) / 2;
+
+        if (level == 1) {
+            projectiles.add(new Projectile(px, py, pWidth, pHeight, damage, pvx, pvy, false));
+        } else {
+            // Multi-shot spread or parallel projectiles traveling in the aim direction
+            projectiles.add(new Projectile(px - 15, py, pWidth, pHeight, damage, pvx, pvy, false));
+            projectiles.add(new Projectile(px, py, pWidth, pHeight, damage, pvx, pvy, false));
+            projectiles.add(new Projectile(px + 15, py, pWidth, pHeight, damage, pvx, pvy, false));
         }
     }
 

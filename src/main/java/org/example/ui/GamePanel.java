@@ -42,6 +42,36 @@ public class GamePanel extends JPanel {
             }
         });
 
+        addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
+            @Override
+            public void mouseMoved(java.awt.event.MouseEvent e) {
+                Nave nave = game.getNave();
+                int screenWidth = getWidth();
+                int screenHeight = getHeight();
+                int mapWidth = game.getMapWidth();
+                int mapHeight = game.getMapHeight();
+
+                // Account for camera translation matching paintComponent
+                int cameraX = Math.max(0, Math.min(nave.getX() - screenWidth / 2 + nave.getWidth() / 2, mapWidth - screenWidth));
+                int cameraY = Math.max(0, Math.min(nave.getY() - screenHeight / 2 + nave.getHeight() / 2, mapHeight - screenHeight));
+
+                // World coordinates of the mouse cursor
+                double mouseWorldX = e.getX() + cameraX;
+                double mouseWorldY = e.getY() + cameraY;
+
+                // Ship center in world coordinates
+                double shipCenterX = nave.getX() + nave.getWidth() / 2.0;
+                double shipCenterY = nave.getY() + nave.getHeight() / 2.0;
+
+                // Calculate angle towards mouse using Math.atan2
+                double dx = mouseWorldX - shipCenterX;
+                double dy = mouseWorldY - shipCenterY;
+                double angleDegree = Math.toDegrees(Math.atan2(dy, dx)) + 90; // +90 adjustment depending on sprite asset orientation
+
+                nave.setAngle(angleDegree);
+            }
+        });
+
         // Load backgrounds
         bgImage1 = BufferedImageUtil.readImage("SpaceBG.png", GamePanel.class);
         bgImage2 = BufferedImageUtil.readImage("SpaceBG1.png", GamePanel.class);
@@ -116,19 +146,29 @@ public class GamePanel extends JPanel {
         int levelIndex = Math.max(0, Math.min(nave.getLevel() - 1, 3));
         naveRenderer.render(g2d, nave, shipImages[levelIndex]);
 
-        // 4. Draw Projectiles
+        // 4. Draw Projectiles with Rotation
         for (Projectile p : game.getProjectiles()) {
             int drawX = (int) p.getX();
             int drawY = (int) p.getY();
             BufferedImage pImg = p.isEnemyProjectile() ? enemyProjectileImage : projectileImage;
             Color fallbackColor = p.isEnemyProjectile() ? Color.orange : Color.green;
 
+            Graphics2D g2dCopy = (Graphics2D) g2d.create(); // Create a copy so transforms don't stack up
+
+            // Calculate exact center of the projectile bounds
+            double centerX = drawX + p.getWidth() / 2.0;
+            double centerY = drawY + p.getHeight() / 2.0;
+
+            g2dCopy.translate(centerX, centerY);
+            g2dCopy.rotate(Math.toRadians(p.getAngle()));
+
             if (pImg != null) {
-                g2d.drawImage(pImg, drawX, drawY, p.getWidth(), p.getHeight(), this);
+                g2dCopy.drawImage(pImg, -p.getWidth() / 2, -p.getHeight() / 2, p.getWidth(), p.getHeight(), this);
             } else {
-                g2d.setColor(fallbackColor);
-                g2d.fillOval(drawX, drawY, p.getWidth(), p.getHeight());
+                g2dCopy.setColor(fallbackColor);
+                g2dCopy.fillOval(-p.getWidth() / 2, -p.getHeight() / 2, p.getWidth(), p.getHeight());
             }
+            g2dCopy.dispose(); // Clean up graphics copy
         }
 
         // 5. Draw Enemies via Renderer

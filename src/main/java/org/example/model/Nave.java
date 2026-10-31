@@ -25,6 +25,8 @@ public class Nave implements Collidable, Damageable {
     private double maxEnergy;
     private int speed;
 
+    private double angle = 0.0; // Rotation angle in degrees
+
     public Nave(int x, int y) {
         this.id = UUID.randomUUID().toString();
         this.x = x;

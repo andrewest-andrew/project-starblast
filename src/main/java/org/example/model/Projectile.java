@@ -16,6 +16,7 @@ public class Projectile implements Collidable {
     private int damage;
     private double vx, vy; // Velocity components for directional movement
     private boolean enemyProjectile; // True if fired by an enemy
+    private double angle;
 
     public Projectile(double x, double y, int width, int height, int damage, double vx, double vy, boolean enemyProjectile) {
         this.x = x;
@@ -26,6 +27,8 @@ public class Projectile implements Collidable {
         this.vx = vx;
         this.vy = vy;
         this.enemyProjectile = enemyProjectile;
+
+        this.angle = Math.toDegrees(Math.atan2(vy, vx)) + 90;
     }
 
     @Override
