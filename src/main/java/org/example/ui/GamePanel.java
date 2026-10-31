@@ -107,6 +107,46 @@ public class GamePanel extends JPanel {
 
         g2d.translate(cameraX, cameraY);
         drawHUD(g2d, nave);
+
+        // --- 5. DRAW WIN/LOSS OVERLAYS ON TOP OF THE FROZEN FRAME ---
+        if (game.isGameWon()) {
+            // Semi-transparent dark tint (Alpha = 160 instead of solid 220)
+            g2d.setColor(new Color(0, 0, 0, 160));
+            g2d.fillRect(0, 0, getWidth(), getHeight());
+
+            g2d.setFont(new Font("Arial", Font.BOLD, 48));
+            String winText = "VICTORY! BOSS DEFEATED";
+            FontMetrics fm = g2d.getFontMetrics();
+            int textWidth = fm.stringWidth(winText);
+
+            g2d.setColor(Color.GREEN);
+            g2d.drawString(winText, (getWidth() - textWidth) / 2, getHeight() / 2 - 20);
+
+            g2d.setFont(new Font("Arial", Font.PLAIN, 20));
+            String subText = "You saved the galaxy!";
+            int subWidth = g2d.getFontMetrics().stringWidth(subText);
+            g2d.setColor(Color.WHITE);
+            g2d.drawString(subText, (getWidth() - subWidth) / 2, getHeight() / 2 + 20);
+
+        } else if (game.isGameOver()) {
+            // Semi-transparent dark tint
+            g2d.setColor(new Color(0, 0, 0, 160));
+            g2d.fillRect(0, 0, getWidth(), getHeight());
+
+            g2d.setFont(new Font("Arial", Font.BOLD, 48));
+            String loseText = "GAME OVER";
+            FontMetrics fm = g2d.getFontMetrics();
+            int textWidth = fm.stringWidth(loseText);
+
+            g2d.setColor(Color.RED);
+            g2d.drawString(loseText, (getWidth() - textWidth) / 2, getHeight() / 2 - 20);
+
+            g2d.setFont(new Font("Arial", Font.PLAIN, 20));
+            String subText = "Your ship was destroyed.";
+            int subWidth = g2d.getFontMetrics().stringWidth(subText);
+            g2d.setColor(Color.WHITE);
+            g2d.drawString(subText, (getWidth() - subWidth) / 2, getHeight() / 2 + 20);
+        }
     }
 
     private void drawBackground(Graphics2D g2d, int mapWidth, int mapHeight) {

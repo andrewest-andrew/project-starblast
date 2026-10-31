@@ -51,7 +51,7 @@ public class Asteroid implements Collidable, Damageable {
         }
         this.hp = this.maxHp;
 
-        // Give them a random slow drift velocity (e.g., between -1.5 and 1.5)
+        // Fixed velocity calculation for a smooth floating drift (-1.5 to 1.5)
         this.vx = (Math.random() * 2.0 - 1.0) * 1.5;
         this.vy = (Math.random() * 2.0 - 1.0) * 1.5;
     }
@@ -74,6 +74,7 @@ public class Asteroid implements Collidable, Damageable {
             vy = -vy;
         }
     }
+
     @Override
     public double getHp() {
         return hp;

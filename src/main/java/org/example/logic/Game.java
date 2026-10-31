@@ -1,18 +1,20 @@
 package org.example.logic;
 
 import lombok.Getter;
+import org.example.logic.interfaces.GameStateListener;
 import org.example.model.Asteroid;
 import org.example.model.Enemy;
 import org.example.model.Nave;
 import org.example.model.Projectile;
 
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 
 @Getter
-public class Game {
+public class Game implements GameStateListener {
     private Nave nave;
     private List<Projectile> projectiles;
     private List<Asteroid> asteroids;
@@ -32,6 +34,19 @@ public class Game {
 
     private boolean movingUp, movingDown, movingLeft, movingRight;
     private boolean shooting;
+
+    private boolean gameWon = false;
+    private boolean gameOver = false;
+
+    @Override
+    public void onBossDefeated() {
+        this.gameWon = true;
+    }
+
+    @Override
+    public void onPlayerDefeated() {
+        this.gameOver = true;
+    }
 
     public Game() {
         // Initialize player ship at x,y
@@ -89,6 +104,8 @@ public class Game {
 
     // Called every frame by Hilo
     public void actualizar() {
+        if (gameWon || gameOver) return; // Stop updating game logic once won
+
         // 1. Handle Ship Movement using dynamic ship speed
         int shipSpeed = nave.getSpeed();
         int newX = nave.getX();
@@ -99,7 +116,7 @@ public class Game {
         if (movingLeft) newX -= shipSpeed;
         if (movingRight) newX += shipSpeed;
 
-        // Keep ship inside dynamic map bounds
+        // Keep ship inside dynamic map bounds (Fixed formatting syntax)
         newX = Math.max(0, Math.min(newX, mapWidth - nave.getWidth()));
         newY = Math.max(0, Math.min(newY, mapHeight - nave.getHeight()));
 
@@ -169,7 +186,6 @@ public class Game {
             // --- ENEMY SHOOTING LOGIC ---
             if (distance <= 200.0) {
                 long currentTime = System.currentTimeMillis();
-                // Adjust fire rate per enemy type if desired (Boss fires slightly faster/slower)
                 long fireCooldown = (enemy.getEnemyType() == Enemy.Type.BOSS) ? 800 : 1200;
 
                 if (currentTime - enemy.getLastShotTime() >= fireCooldown) {
@@ -199,10 +215,10 @@ public class Game {
             }
         }
 
-        // 5. Update Projectiles
-        Iterator<Projectile> iterator = projectiles.iterator();
-        while (iterator.hasNext()) {
-            Projectile p = iterator.next();
+        // 5. Update Projectiles & Check Collisions
+        Iterator<Projectile> projectileIterator = projectiles.iterator();
+        while (projectileIterator.hasNext()) {
+            Projectile p = projectileIterator.next();
 
             // Move based on velocity vectors
             p.setX(p.getX() + p.getVx());
@@ -210,16 +226,113 @@ public class Game {
 
             // Remove if it goes out of map bounds
             if (p.getX() < 0 || p.getX() > mapWidth || p.getY() < 0 || p.getY() > mapHeight) {
-                iterator.remove();
+                projectileIterator.remove();
+                continue;
+            }
+
+            Rectangle pBounds = p.getBounds();
+            boolean projectileRemoved = false;
+
+            if (p.isEnemyProjectile()) {
+                // Check if enemy projectile hits the player (Nave)
+                if (pBounds.intersects(nave.getBounds())) {
+                    nave.takeDamage(10); // Enemy bullet damage
+                    projectileRemoved = true;
+                }
+            } else {
+                // Check if player projectile hits an Enemy
+                Iterator<Enemy> enemyIterator = enemies.iterator();
+                while (enemyIterator.hasNext()) {
+                    Enemy enemy = enemyIterator.next();
+                    if (pBounds.intersects(enemy.getBounds())) {
+                        enemy.takeDamage(p.getDamage());
+                        projectileRemoved = true;
+                        break;
+                    }
+                }
+
+                // Check if player projectile hits an Asteroid (if not already destroyed by an enemy)
+                if (!projectileRemoved) {
+                    Iterator<Asteroid> asteroidIterator = asteroids.iterator();
+                    while (asteroidIterator.hasNext()) {
+                        Asteroid ast = asteroidIterator.next();
+                        if (pBounds.intersects(ast.getBounds())) {
+                            ast.takeDamage(p.getDamage());
+                            projectileRemoved = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (projectileRemoved) {
+                projectileIterator.remove();
             }
         }
 
-        // 6. Update Asteroids
+        // 6. Update Asteroids (Drift and Bounce)
         for (Asteroid ast : asteroids) {
             ast.setX(ast.getX() + ast.getVx());
             ast.setY(ast.getY() + ast.getVy());
             ast.checkBounds(mapWidth, mapHeight);
         }
+
+        // --- 7. CHECK PLAYER VS ASTEROID COLLISIONS & KNOCKBACK ---
+        Rectangle naveBounds = nave.getBounds();
+        for (Asteroid ast : asteroids) {
+            if (naveBounds.intersects(ast.getBounds())) {
+                // Damage scaling by size
+                double damage = switch (ast.getSizeType()) {
+                    case BIG -> 30.0;
+                    case MID -> 15.0;
+                    case SMALL -> 5.0;
+                };
+                nave.takeDamage(damage);
+
+                // Knockback physics push vector
+                double astCenterX = ast.getX() + ast.getWidth() / 2.0;
+                double astCenterY = ast.getY() + ast.getHeight() / 2.0;
+
+                double dx = playerCenterX - astCenterX;
+                double dy = playerCenterY - astCenterY;
+                double distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance == 0) {
+                    dx = 1;
+                    dy = 0;
+                    distance = 1;
+                }
+
+                int pushBackDistance = 60;
+                int pushedX = (int) (nave.getX() + (dx / distance) * pushBackDistance);
+                int pushedY = (int) (nave.getY() + (dy / distance) * pushBackDistance);
+
+                pushedX = Math.max(0, Math.min(pushedX, mapWidth - nave.getWidth()));
+                pushedY = Math.max(0, Math.min(pushedY, mapHeight - nave.getHeight()));
+
+                nave.setX(pushedX);
+                nave.setY(pushedY);
+                break; // Single collision handle per frame
+            }
+        }
+
+        // 8. Cleanup Destroyed Entities & Check Win/Loss Conditions
+        Iterator<Enemy> enemyIterator = enemies.iterator();
+        while (enemyIterator.hasNext()) {
+            Enemy enemy = enemyIterator.next();
+            if (enemy.isDestroyed()) {
+                if (enemy.getEnemyType() == Enemy.Type.BOSS) {
+                    onBossDefeated(); // Trigger Victory state
+                }
+                enemyIterator.remove();
+            }
+        }
+
+        if (nave.isDestroyed()) {
+            onPlayerDefeated(); // Trigger Game Over state
+        }
+
+        asteroids.removeIf(Asteroid::isDestroyed);
     }
 
     private void tryShoot() {
