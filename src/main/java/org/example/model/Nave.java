@@ -23,7 +23,7 @@ public class Nave implements Collidable, Damageable {
     private double maxHp;
     private double energy;
     private double maxEnergy;
-    private int speed;
+    private double speed;
 
     private double angle = 0.0; // Rotation angle in degrees
 
@@ -47,28 +47,28 @@ public class Nave implements Collidable, Damageable {
     private void applyLevelStats() {
         switch (level) {
             case 1:
-                this.speed = 2;
+                this.speed = 1.75;
                 this.maxHp = 100;
                 this.maxEnergy = 100;
                 this.width = 30;
                 this.height = 30;
                 break;
             case 2:
-                this.speed = 3;
+                this.speed = 2;
                 this.maxHp = 150;
                 this.maxEnergy = 150;
                 this.width = 40;
                 this.height = 40;
                 break;
             case 3:
-                this.speed = 3;
+                this.speed = 2.25;
                 this.maxHp = 200;
                 this.maxEnergy = 200;
                 this.width = 60;
                 this.height = 60;
                 break;
             case 4:
-                this.speed = 4;
+                this.speed = 2.75;
                 this.maxHp = 250;
                 this.maxEnergy = 250;
                 this.width = 80;

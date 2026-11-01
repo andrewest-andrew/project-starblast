@@ -12,6 +12,7 @@ public class GamePanel extends JPanel {
     private final BufferedImage bgImage1, bgImage2, bgImage3, bgImage4;
     private final BufferedImage projectileImage, enemyProjectileImage;
     private final BufferedImage[] shipImages = new BufferedImage[4];
+    private final BufferedImage level4LaserImage;
 
     // Renderers
     private final NaveRenderer naveRenderer = new NaveRenderer();
@@ -24,11 +25,27 @@ public class GamePanel extends JPanel {
         setDoubleBuffered(true);
         setFocusable(true);
 
-        // --- MOUSE CLICK SHOOTING LISTENER ---
+        // Listen for any key press to start the game
+        addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent e) {
+                if (!game.isGameStarted()) {
+                    game.startGame();
+                    repaint();
+                }
+            }
+        });
+
+// Update Mouse Listener to also start the game on click
         addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mousePressed(java.awt.event.MouseEvent e) {
-                // If game has ended, check if player clicked the restart button
+                if (!game.isGameStarted()) {
+                    game.startGame();
+                    repaint();
+                    return;
+                }
+
                 if (game.isGameWon() || game.isGameOver()) {
                     if (getRestartButtonBounds().contains(e.getPoint())) {
                         game.resetGame();
@@ -37,8 +54,11 @@ public class GamePanel extends JPanel {
                     return;
                 }
 
-                if (e.getButton() == java.awt.event.MouseEvent.BUTTON1) { // Left click
+                if (e.getButton() == java.awt.event.MouseEvent.BUTTON1) {
                     game.setShooting(true);
+                    game.tryShoot();
+                } else if (e.getButton() == java.awt.event.MouseEvent.BUTTON3) {
+                    game.setRightMouseDown(true);
                     game.tryShoot();
                 }
             }
@@ -47,7 +67,57 @@ public class GamePanel extends JPanel {
             public void mouseReleased(java.awt.event.MouseEvent e) {
                 if (e.getButton() == java.awt.event.MouseEvent.BUTTON1) {
                     game.setShooting(false);
+                } else if (e.getButton() == java.awt.event.MouseEvent.BUTTON3) {
+                    game.setRightMouseDown(false);
                 }
+            }
+        });
+
+        // --- MOUSE CLICK SHOOTING LISTENER ---
+        addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent e) {
+                if (game.isGameWon() || game.isGameOver()) {
+                    if (getRestartButtonBounds().contains(e.getPoint())) {
+                        game.resetGame();
+                        repaint();
+                    }
+                    return;
+                }
+
+                if (e.getButton() == java.awt.event.MouseEvent.BUTTON1) {
+                    game.setShooting(true);
+                    game.tryShoot();
+                } else if (e.getButton() == java.awt.event.MouseEvent.BUTTON3) { // Right click
+                    game.setRightMouseDown(true);
+                    game.tryShoot();
+                }
+            }
+
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent e) {
+                if (e.getButton() == java.awt.event.MouseEvent.BUTTON1) {
+                    game.setShooting(false);
+                } else if (e.getButton() == java.awt.event.MouseEvent.BUTTON3) {
+                    game.setRightMouseDown(false);
+                }
+            }
+        });
+
+        // Key Listener for 'E' key
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("E"), "pressE");
+        getActionMap().put("pressE", new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                game.setEKeyPressed(true);
+            }
+        });
+
+        getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("released E"), "releaseE");
+        getActionMap().put("releaseE", new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                game.setEKeyPressed(false);
             }
         });
 
@@ -89,6 +159,7 @@ public class GamePanel extends JPanel {
 
         // Load project/laser images
         projectileImage = BufferedImageUtil.readImage("ProjectilePea.png", GamePanel.class);
+        level4LaserImage = BufferedImageUtil.readImage("laser.png", GamePanel.class);
         enemyProjectileImage = BufferedImageUtil.readImage("enemy_bullets.png", GamePanel.class);
 
         // Load ship assets
@@ -122,6 +193,42 @@ public class GamePanel extends JPanel {
         Nave nave = game.getNave();
         int mapWidth = game.getMapWidth();
         int mapHeight = game.getMapHeight();
+
+        // --- DRAW START SCREEN IF GAME HAS NOT STARTED ---
+        if (!game.isGameStarted()) {
+            // Render background grid across the panel view
+            drawBackground(g2d, getWidth(), getHeight());
+
+            // Dark overlay for contrast
+            g2d.setColor(new Color(0, 0, 0, 180));
+            g2d.fillRect(0, 0, getWidth(), getHeight());
+
+            int centerX = getWidth() / 2;
+            int centerY = getHeight() / 2;
+
+            // Title: andrew's
+            g2d.setFont(new Font("Arial", Font.BOLD, 36));
+            String line1 = "andrew's";
+            FontMetrics fm1 = g2d.getFontMetrics();
+            g2d.setColor(Color.CYAN);
+            g2d.drawString(line1, centerX - fm1.stringWidth(line1) / 2, centerY - 60);
+
+            // Title: STAR BLASTER
+            g2d.setFont(new Font("Arial", Font.BOLD, 52));
+            String line2 = "STAR BLASTER";
+            FontMetrics fm2 = g2d.getFontMetrics();
+            g2d.setColor(Color.YELLOW);
+            g2d.drawString(line2, centerX - fm2.stringWidth(line2) / 2, centerY + 10);
+
+            // Subtitle: press any key to begin
+            g2d.setFont(new Font("Arial", Font.PLAIN, 20));
+            String line3 = "press any key to begin";
+            FontMetrics fm3 = g2d.getFontMetrics();
+            g2d.setColor(Color.WHITE);
+            g2d.drawString(line3, centerX - fm3.stringWidth(line3) / 2, centerY + 70);
+
+            return; // Skip normal gameplay rendering until started
+        }
 
         // Camera calculations
         int screenWidth = getWidth();
@@ -159,12 +266,18 @@ public class GamePanel extends JPanel {
         for (Projectile p : game.getProjectiles()) {
             int drawX = (int) p.getX();
             int drawY = (int) p.getY();
-            BufferedImage pImg = p.isEnemyProjectile() ? enemyProjectileImage : projectileImage;
-            Color fallbackColor = p.isEnemyProjectile() ? Color.orange : Color.green;
 
-            Graphics2D g2dCopy = (Graphics2D) g2d.create(); // Create a copy so transforms don't stack up
+            // Select image based on whether it's a piercing Level 4 beam or standard projectile
+            BufferedImage pImg;
+            if (p.isPiercing()) {
+                pImg = (level4LaserImage != null) ? level4LaserImage : projectileImage;
+            } else {
+                pImg = p.isEnemyProjectile() ? enemyProjectileImage : projectileImage;
+            }
 
-            // Calculate exact center of the projectile bounds
+            Color fallbackColor = p.isEnemyProjectile() ? Color.orange : (p.isPiercing() ? Color.cyan : Color.green);
+
+            Graphics2D g2dCopy = (Graphics2D) g2d.create();
             double centerX = drawX + p.getWidth() / 2.0;
             double centerY = drawY + p.getHeight() / 2.0;
 
@@ -177,7 +290,7 @@ public class GamePanel extends JPanel {
                 g2dCopy.setColor(fallbackColor);
                 g2dCopy.fillOval(-p.getWidth() / 2, -p.getHeight() / 2, p.getWidth(), p.getHeight());
             }
-            g2dCopy.dispose(); // Clean up graphics copy
+            g2dCopy.dispose();
         }
 
         // 5. Draw Enemies via Renderer

@@ -28,13 +28,19 @@ public class Game implements GameStateListener {
     private boolean wave3 = false;
 
     private long lastShotTime;
-    private static final long SHOOT_COOLDOWN = 250; // 250ms
+    private static final long SHOOT_COOLDOWN = 1500; // 250ms
 
     private boolean movingUp, movingDown, movingLeft, movingRight;
     private boolean shooting;
 
     private boolean gameWon = false;
     private boolean gameOver = false;
+
+    private boolean rightMouseDown = false;
+    private boolean eKeyPressed = false;
+
+    public void setRightMouseDown(boolean rightMouseDown) { this.rightMouseDown = rightMouseDown; }
+    public void setEKeyPressed(boolean eKeyPressed) { this.eKeyPressed = eKeyPressed; }
 
     @Getter
     private int collectedGems = 0;
@@ -49,6 +55,14 @@ public class Game implements GameStateListener {
         this.gameOver = true;
     }
 
+    @Getter
+    private boolean gameStarted = false;
+
+    public void startGame() {
+        this.gameStarted = true;
+        this.gameStartTime = System.currentTimeMillis(); // Reset timer when game actually starts
+    }
+
     public void resetGame() {
         this.nave = new Nave(1250, 750);
         this.projectiles.clear();
@@ -56,6 +70,7 @@ public class Game implements GameStateListener {
         this.enemies.clear();
         this.gems.clear();
         this.collectedGems = 0;
+        this.gameStarted = true;
         this.gameStartTime = System.currentTimeMillis();
         this.wave1 = false;
         this.wave2 = false;
@@ -121,10 +136,10 @@ public class Game implements GameStateListener {
 
     // Called every frame by Hilo
     public void actualizar() {
-        if (gameWon || gameOver) return; // Stop updating game logic once won
+        if (!gameStarted || gameWon || gameOver) return; // Stop updating game logic once won
 
         // 1. Handle Ship Movement using dynamic ship speed
-        int shipSpeed = nave.getSpeed();
+        double shipSpeed = nave.getSpeed();
         int newX = nave.getX();
         int newY = nave.getY();
 
@@ -152,15 +167,15 @@ public class Game implements GameStateListener {
         long elapsedSeconds = getElapsedSeconds();
 
         if (elapsedSeconds >= 30 && !wave1) {
-            spawnEnemies(3, 0, 0);
+            spawnEnemies(5, 0, 0);
             wave1 = true;
         }
         if (elapsedSeconds >= 60 && !wave2) {
-            spawnEnemies(3, 2, 0);
+            spawnEnemies(5, 3, 0);
             wave2 = true;
         }
         if (elapsedSeconds >= 90 && !wave3) {
-            spawnEnemies(3, 2, 1);
+            spawnEnemies(5, 3, 1);
             wave3 = true;
         }
 
@@ -177,7 +192,7 @@ public class Game implements GameStateListener {
             double distance = Math.sqrt(dx * dx + dy * dy);
 
             // --- AGGRO & CHASING LOGIC ---
-            if (distance <= 400.0) {
+            if (distance <= 600.0) {
                 enemy.setAggro(true);
             }
 
@@ -200,12 +215,12 @@ public class Game implements GameStateListener {
             // --- ENEMY SHOOTING LOGIC ---
             if (distance <= 350.0) {
                 long currentTime = System.currentTimeMillis();
-                long fireCooldown = (enemy.getEnemyType() == Enemy.Type.BOSS) ? 800 : 1200;
+                long fireCooldown = (enemy.getEnemyType() == Enemy.Type.BOSS) ? 300 : 500;
 
                 if (currentTime - enemy.getLastShotTime() >= fireCooldown) {
                     double length = distance;
                     if (length > 0) {
-                        double bulletSpeed = 5.0;
+                        double bulletSpeed = 5.5;
                         double pvx = (dx / length) * bulletSpeed;
                         double pvy = (dy / length) * bulletSpeed;
 
@@ -213,8 +228,9 @@ public class Game implements GameStateListener {
                         int pHeight = 25;
                         double px = enemyCenterX - pWidth / 2.0;
                         double py = enemyCenterY - pHeight / 2.0;
+                        double maxRange = 700.0;
 
-                        projectiles.add(new Projectile(px, py, pWidth, pHeight, 10, pvx, pvy, true));
+                        projectiles.add(new Projectile(px, py, pWidth, pHeight, 10, pvx, pvy, true, false, maxRange));
                         enemy.setLastShotTime(currentTime);
                     }
                 }
@@ -237,7 +253,7 @@ public class Game implements GameStateListener {
             p.setX(p.getX() + p.getVx());
             p.setY(p.getY() + p.getVy());
 
-            if (p.getX() < 0 || p.getX() > mapWidth || p.getY() < 0 || p.getY() > mapHeight) {
+            if (p.getX() < 0 || p.getX() > mapWidth || p.getY() < 0 || p.getY() > mapHeight || p.hasExceededRange()) {
                 projectileIterator.remove();
                 continue;
             }
@@ -251,24 +267,31 @@ public class Game implements GameStateListener {
                     projectileRemoved = true;
                 }
             } else {
+                // Check enemy collisions
                 Iterator<Enemy> enemyIterator = enemies.iterator();
                 while (enemyIterator.hasNext()) {
                     Enemy enemy = enemyIterator.next();
                     if (pBounds.intersects(enemy.getBounds())) {
                         enemy.takeDamage(p.getDamage());
-                        projectileRemoved = true;
-                        break;
+                        // If it's NOT piercing (normal projectile), destroy it on first impact
+                        if (!p.isPiercing()) {
+                            projectileRemoved = true;
+                            break;
+                        }
                     }
                 }
 
-                if (!projectileRemoved) {
+                // Check asteroid collisions
+                if (!projectileRemoved || p.isPiercing()) {
                     Iterator<Asteroid> asteroidIterator = asteroids.iterator();
                     while (asteroidIterator.hasNext()) {
                         Asteroid ast = asteroidIterator.next();
                         if (pBounds.intersects(ast.getBounds())) {
                             ast.takeDamage(p.getDamage());
-                            projectileRemoved = true;
-                            break;
+                            if (!p.isPiercing()) {
+                                projectileRemoved = true;
+                                break;
+                            }
                         }
                     }
                 }
@@ -310,7 +333,7 @@ public class Game implements GameStateListener {
                     distance = 1;
                 }
 
-                int pushBackDistance = 60;
+                int pushBackDistance = 70;
                 int pushedX = (int) (nave.getX() + (dx / distance) * pushBackDistance);
                 int pushedY = (int) (nave.getY() + (dy / distance) * pushBackDistance);
 
@@ -358,15 +381,27 @@ public class Game implements GameStateListener {
 
                 // Progression Rules
                 if (collectedGems >= 25) {
-                    nave.setLevel(4);
+                    if (nave.getLevel() < 4) {
+                        nave.setLevel(4);
+                        nave.setHp(nave.getMaxHp());
+                        nave.setEnergy(nave.getMaxEnergy());
+                    }
+                    // Subsequent gems restore HP and Energy
                     nave.setHp(Math.min(nave.getMaxHp(), nave.getHp() + 10));
                     nave.setEnergy(Math.min(nave.getMaxEnergy(), nave.getEnergy() + 10));
                 } else if (collectedGems >= 15) {
-                    nave.setLevel(3);
+                    if (nave.getLevel() < 3) {
+                        nave.setLevel(3);
+                        nave.setHp(nave.getMaxHp());
+                        nave.setEnergy(nave.getMaxEnergy());
+                    }
                 } else if (collectedGems >= 5) {
-                    nave.setLevel(2);
+                    if (nave.getLevel() < 2) {
+                        nave.setLevel(2);
+                        nave.setHp(nave.getMaxHp());
+                        nave.setEnergy(nave.getMaxEnergy());
+                    }
                 }
-
                 gemIterator.remove();
             }
         }
@@ -411,8 +446,20 @@ public class Game implements GameStateListener {
 
     public void tryShoot() {
         int level = nave.getLevel();
-        int energyCost = (level == 1) ? 5 : 10;
 
+        // Check if Level 4 and user is pressing Right Click + "E" key for the special beam
+        if (level == 4 && rightMouseDown && eKeyPressed) {
+            int energyCost = 12;
+            if (nave.getEnergy() >= energyCost) {
+                nave.setEnergy(nave.getEnergy() - energyCost);
+                dispararPiercingLaser();
+                lastShotTime = System.currentTimeMillis();
+            }
+            return;
+        }
+
+        // Standard shooting behavior for other levels or inputs
+        int energyCost = (level == 1) ? 5 : 10;
         if (nave.getEnergy() >= energyCost) {
             nave.setEnergy(nave.getEnergy() - energyCost);
             dispararProjectile();
@@ -420,10 +467,29 @@ public class Game implements GameStateListener {
         }
     }
 
+    private void dispararPiercingLaser() {
+        int pWidth = 14;
+        int pHeight = 40; // Longer beam asset look
+        double damage = 15.0;
+        double maxRange = 640.0;
+
+        double angleRad = Math.toRadians(nave.getAngle() - 90);
+        double bulletSpeed = 9.0;
+        double pvx = Math.cos(angleRad) * bulletSpeed;
+        double pvy = Math.sin(angleRad) * bulletSpeed;
+
+        int px = nave.getX() + (nave.getWidth() - pWidth) / 2;
+        int py = nave.getY() + (nave.getHeight() - pHeight) / 2;
+
+        // Spawns a piercing projectile that travels 640px and deals 15 damage
+        projectiles.add(new Projectile(px, py, pWidth, pHeight, damage, pvx, pvy, false, true, maxRange));
+    }
+
     private void dispararProjectile() {
         int pWidth = 10;
         int pHeight = 15;
         int damage = 10;
+        double maxRange = 700.0;
         int level = nave.getLevel();
 
         // Calculate velocity vectors based on the ship's current rotation angle
@@ -437,12 +503,12 @@ public class Game implements GameStateListener {
         int py = nave.getY() + (nave.getHeight() - pHeight) / 2;
 
         if (level == 1) {
-            projectiles.add(new Projectile(px, py, pWidth, pHeight, damage, pvx, pvy, false));
+            projectiles.add(new Projectile(px, py, pWidth, pHeight, damage, pvx, pvy, false, false, maxRange));
         } else {
             // Multi-shot spread or parallel projectiles traveling in the aim direction
-            projectiles.add(new Projectile(px - 15, py, pWidth, pHeight, damage, pvx, pvy, false));
-            projectiles.add(new Projectile(px, py, pWidth, pHeight, damage, pvx, pvy, false));
-            projectiles.add(new Projectile(px + 15, py, pWidth, pHeight, damage, pvx, pvy, false));
+            projectiles.add(new Projectile(px - 15, py, pWidth, pHeight, damage, pvx, pvy, false, false, maxRange));
+            projectiles.add(new Projectile(px, py, pWidth, pHeight, damage, pvx, pvy, false, false, maxRange));
+            projectiles.add(new Projectile(px + 15, py, pWidth, pHeight, damage, pvx, pvy, false, false, maxRange));
         }
     }
 
